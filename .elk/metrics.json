@@ -1,0 +1,44 @@
+{
+  "extension.js": {
+    "importDepth": 0,
+    "directUsageCount": 0,
+    "usageDepth": 0,
+    "folderCount": 1,
+    "importCount": 0
+  },
+  "media/assets/index.js": {
+    "importDepth": 0,
+    "directUsageCount": 0,
+    "usageDepth": 0,
+    "folderCount": 3,
+    "importCount": 0
+  },
+  "webview-ui/dist/assets/index.js": {
+    "importDepth": 0,
+    "directUsageCount": 0,
+    "usageDepth": 0,
+    "folderCount": 4,
+    "importCount": 0
+  },
+  "webview-ui/src/App.jsx": {
+    "importDepth": 0,
+    "directUsageCount": 1,
+    "usageDepth": 1,
+    "folderCount": 3,
+    "importCount": 0
+  },
+  "webview-ui/src/main.jsx": {
+    "importDepth": null,
+    "directUsageCount": 0,
+    "usageDepth": 0,
+    "folderCount": 3,
+    "importCount": 1
+  },
+  "webview-ui/vite.config.js": {
+    "importDepth": 0,
+    "directUsageCount": 0,
+    "usageDepth": 0,
+    "folderCount": 2,
+    "importCount": 0
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "vscode-react-webview-demo",
+  "displayName": "React Webview Demo",
+  "description": "VS Code extension with React webview panel and two-way communication",
+  "version": "1.0.0",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:demo.openPanel",
+    "onCommand:demo.sendMessage"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "demo.openPanel",
+        "title": "Demo: Open Panel"
+      },
+      {
+        "command": "demo.sendMessage",
+        "title": "Demo: Send Message"
+      }
+    ]
+  },
+  "scripts": {
+    "build:webview": "cd webview-ui && npm install && npm run build",
+    "postbuild:webview": "node -e \"const fs=require('fs');const path=require('path');const src='webview-ui/dist';const dest='media';if(fs.existsSync(dest)){fs.rmSync(dest,{recursive:true});}fs.mkdirSync(dest,{recursive:true});fs.readdirSync(src).forEach(file=>{fs.cpSync(path.join(src,file),path.join(dest,file),{recursive:true});});\"",
+    "build": "npm run build:webview && npm run postbuild:webview",
+    "package": "vsce package",
+    "dev": "echo 'Press F5 in VS Code to launch Extension Development Host'"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^2.22.0"
+  }
+}

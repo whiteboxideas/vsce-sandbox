@@ -1,0 +1,8 @@
+node_modules/
+media/
+*.vsix
+.vscode-test/
+.DS_Store
+webview-ui/dist/
+webview-ui/node_modules/
+

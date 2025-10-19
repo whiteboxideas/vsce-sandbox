@@ -1,0 +1,10 @@
+{
+  "extension.js": [],
+  "media/assets/index.js": [],
+  "webview-ui/dist/assets/index.js": [],
+  "webview-ui/src/App.jsx": [],
+  "webview-ui/src/main.jsx": [
+    "webview-ui/src/App.jsx"
+  ],
+  "webview-ui/vite.config.js": []
+}
