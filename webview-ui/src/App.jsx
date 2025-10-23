@@ -40,6 +40,17 @@ function App() {
     console.log('[Webview] Notify message sent');
   };
 
+  const handleToggleLocation = () => {
+    console.log('[Webview] Toggle location button clicked');
+
+    // Send message to extension to toggle panel location
+    vscode.postMessage({
+      type: 'toggleLocation',
+    });
+
+    console.log('[Webview] Toggle location message sent');
+  };
+
   const handleOpenFile = () => {
     console.log('[Webview] Open file button clicked, fileName:', fileName);
 
@@ -91,18 +102,36 @@ function App() {
         </div>
       </div>
 
-      <button
-        onClick={handleNotifyClick}
-        style={styles.button}
-        onMouseOver={(e) =>
-          (e.target.style.backgroundColor = styles.buttonHover.backgroundColor)
-        }
-        onMouseOut={(e) =>
-          (e.target.style.backgroundColor = styles.button.backgroundColor)
-        }
-      >
-        Notify in VS Code
-      </button>
+      <div style={styles.buttonGroup}>
+        <button
+          onClick={handleNotifyClick}
+          style={styles.button}
+          onMouseOver={(e) =>
+            (e.target.style.backgroundColor =
+              styles.buttonHover.backgroundColor)
+          }
+          onMouseOut={(e) =>
+            (e.target.style.backgroundColor = styles.button.backgroundColor)
+          }
+        >
+          Notify in VS Code
+        </button>
+
+        <button
+          onClick={handleToggleLocation}
+          style={styles.secondaryButton}
+          onMouseOver={(e) =>
+            (e.target.style.backgroundColor =
+              styles.secondaryButtonHover.backgroundColor)
+          }
+          onMouseOut={(e) =>
+            (e.target.style.backgroundColor =
+              styles.secondaryButton.backgroundColor)
+          }
+        >
+          Toggle Panel Location
+        </button>
+      </div>
 
       <div style={styles.fileSection}>
         <h2 style={styles.subheading}>Open File and Select:</h2>
@@ -213,6 +242,12 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
   },
+  buttonGroup: {
+    display: 'flex',
+    gap: '10px',
+    flexWrap: 'wrap',
+    marginBottom: '20px',
+  },
   button: {
     padding: '10px 20px',
     fontSize: '14px',
@@ -225,6 +260,19 @@ const styles = {
   },
   buttonHover: {
     backgroundColor: 'var(--vscode-button-hoverBackground)',
+  },
+  secondaryButton: {
+    padding: '10px 20px',
+    fontSize: '14px',
+    color: 'var(--vscode-button-secondaryForeground)',
+    backgroundColor: 'var(--vscode-button-secondaryBackground)',
+    border: 'none',
+    borderRadius: '2px',
+    cursor: 'pointer',
+    fontFamily: 'var(--vscode-font-family)',
+  },
+  secondaryButtonHover: {
+    backgroundColor: 'var(--vscode-button-secondaryHoverBackground)',
   },
   fileSection: {
     marginTop: '30px',

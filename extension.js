@@ -28,13 +28,21 @@ function activate(context) {
       sendMessage(context);
     }
   );
+
+  // Register togglePanelLocation command
+  const toggleLocationCmd = vscode.commands.registerCommand(
+    'elk.togglePanelLocation',
+    () => {
+      togglePanelLocation(context);
+    }
+  );
   // #endregion Commands (VSCODE -> EXTENSION)
 
-  context.subscriptions.push(openPanelCmd, sendMessageCmd);
+  context.subscriptions.push(openPanelCmd, sendMessageCmd, toggleLocationCmd);
 }
 
 function openPanel(context) {
-  const config = vscode.workspace.getConfiguration('demo');
+  const config = vscode.workspace.getConfiguration('elk');
   const panelLocation = config.get('panelLocation', 'tab');
 
   if (panelLocation === 'bottom') {
@@ -74,7 +82,7 @@ function openTabPanel(context) {
   // Handle messages from webview
   panel.webview.onDidReceiveMessage(
     (message) => {
-      handleWebviewMessage(message);
+      handleWebviewMessage(message, context);
     },
     undefined,
     context.subscriptions
@@ -91,7 +99,7 @@ function openTabPanel(context) {
 }
 
 function sendMessage(context) {
-  const config = vscode.workspace.getConfiguration('demo');
+  const config = vscode.workspace.getConfiguration('elk');
   const panelLocation = config.get('panelLocation', 'tab');
 
   // If neither panel exists, open it first
@@ -122,7 +130,38 @@ function sendMessageToPanel() {
   }
 }
 
-function handleWebviewMessage(message) {
+function togglePanelLocation(context) {
+  const config = vscode.workspace.getConfiguration('elk');
+  const currentLocation = config.get('panelLocation', 'tab');
+  const newLocation = currentLocation === 'tab' ? 'bottom' : 'tab';
+
+  // Update the configuration
+  config.update(
+    'panelLocation',
+    newLocation,
+    vscode.ConfigurationTarget.Global
+  );
+
+  // Close current panel
+  if (panel) {
+    panel.dispose();
+    panel = null;
+  }
+  if (webviewView) {
+    // Can't programmatically close webviewView, but it will be replaced
+    webviewView = null;
+  }
+
+  // Open in new location after a brief delay
+  setTimeout(() => {
+    openPanel(context);
+    vscode.window.showInformationMessage(
+      `Panel moved to ${newLocation === 'tab' ? 'editor tab' : 'bottom panel'}`
+    );
+  }, 100);
+}
+
+function handleWebviewMessage(message, context) {
   console.log('[Extension] Received message from webview:', message);
 
   if (message.type === 'notify') {
@@ -132,6 +171,8 @@ function handleWebviewMessage(message) {
     const notificationText = `${message.text} - #${notifyCounter} at ${timestamp}`;
     console.log('[Extension] Showing notification:', notificationText);
     vscode.window.showInformationMessage(notificationText);
+  } else if (message.type === 'toggleLocation') {
+    togglePanelLocation(context);
   } else if (message.type === 'openFile') {
     // Handle opening file and executing select
     console.log('[Extension] Opening file:', message.fileName);
@@ -302,7 +343,7 @@ class DemoWebviewViewProvider {
     );
 
     webviewView.webview.onDidReceiveMessage((message) => {
-      handleWebviewMessage(message);
+      handleWebviewMessage(message, this._context);
     });
 
     webviewView.onDidDispose(() => {

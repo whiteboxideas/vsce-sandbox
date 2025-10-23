@@ -9,10 +9,6 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [
-    "onCommand:elk.openPanel",
-    "onCommand:elk.sendMessage"
-  ],
   "main": "./extension.js",
   "contributes": {
     "configuration": {
@@ -41,6 +37,10 @@
       {
         "command": "elk.sendMessage",
         "title": "Demo: Send Message"
+      },
+      {
+        "command": "elk.togglePanelLocation",
+        "title": "Demo: Toggle Panel Location"
       }
     ],
     "viewsContainers": {

@@ -4,12 +4,17 @@ A complete VS Code extension demonstrating two-way communication between the ext
 
 ## Features
 
-- **Two commands:**
-  - `Demo: Open Panel` - Opens a React-powered webview panel as an editor tab
+- **Three commands:**
+  - `Demo: Open Panel` - Opens a React-powered webview panel (tab or bottom panel based on settings)
   - `Demo: Send Message` - Sends a timestamped message to the webview panel
+  - `Demo: Toggle Panel Location` - Switches the panel between tab and bottom panel
+- **Flexible panel location:**
+  - Display the panel as an editor tab or in the bottom panel area
+  - Toggle location via command or button in the webview
+  - Location preference is saved in VS Code settings
 - **Two-way communication:**
   - Extension → Webview: Send messages that display in the React UI
-  - Webview → Extension: Button click triggers VS Code notifications
+  - Webview → Extension: Button clicks trigger VS Code notifications and actions
 
 ## Prerequisites
 
@@ -51,8 +56,14 @@ A complete VS Code extension demonstrating two-way communication between the ext
    - A tabbed panel opens with the React UI
 
 4. **Test two-way communication:**
+
    - Run `Demo: Send Message` from Command Palette → text updates in panel
    - Click "Notify in VS Code" button in panel → notification appears
+
+5. **Toggle panel location:**
+   - Click "Toggle Panel Location" button in the webview
+   - Or run `Demo: Toggle Panel Location` from Command Palette
+   - Panel switches between tab and bottom panel
 
 ## Project Structure
 
@@ -115,6 +126,11 @@ If CSS/JS don't load in the webview:
 
 - `elk.openPanel` - Opens/reveals the webview panel
 - `elk.sendMessage` - Sends a message to the panel (opens it if needed)
+- `elk.togglePanelLocation` - Toggles the panel between tab and bottom panel
+
+## Configuration
+
+- `elk.panelLocation` - Set where the panel opens: `"tab"` (default) or `"bottom"`
 
 ## License
 
