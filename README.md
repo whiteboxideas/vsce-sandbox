@@ -113,8 +113,8 @@ If CSS/JS don't load in the webview:
 
 ## Commands
 
-- `demo.openPanel` - Opens/reveals the webview panel
-- `demo.sendMessage` - Sends a message to the panel (opens it if needed)
+- `elk.openPanel` - Opens/reveals the webview panel
+- `elk.sendMessage` - Sends a message to the panel (opens it if needed)
 
 ## License
 

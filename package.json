@@ -1,6 +1,6 @@
 {
-  "name": "vscode-react-webview-demo",
-  "displayName": "React Webview Demo",
+  "name": "elk-by-wbi",
+  "displayName": "Elk by WBI",
   "description": "VS Code extension with React webview panel and two-way communication",
   "version": "1.0.0",
   "engines": {
@@ -10,25 +10,15 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:demo.openPanel",
-    "onCommand:demo.sendMessage"
+    "onCommand:elk.openPanel",
+    "onCommand:elk.sendMessage"
   ],
   "main": "./extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "demo.openPanel",
-        "title": "Demo: Open Panel"
-      },
-      {
-        "command": "demo.sendMessage",
-        "title": "Demo: Send Message"
-      }
-    ],
     "configuration": {
-      "title": "React Webview Demo",
+      "title": "Elk by WBI",
       "properties": {
-        "demo.panelLocation": {
+        "elk.panelLocation": {
           "type": "string",
           "default": "tab",
           "enum": [
@@ -43,11 +33,30 @@
         }
       }
     },
-    "views": {
+    "commands": [
+      {
+        "command": "elk.openPanel",
+        "title": "Demo: Open Panel"
+      },
+      {
+        "command": "elk.sendMessage",
+        "title": "Demo: Send Message"
+      }
+    ],
+    "viewsContainers": {
       "panel": [
         {
+          "id": "elkPanel",
+          "title": "ELK by WBI",
+          "icon": "media/elk-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "elkPanel": [
+        {
           "type": "webview",
-          "id": "demo.bottomPanel",
+          "id": "elk.bottomPanel",
           "name": "Webview Demo"
         }
       ]

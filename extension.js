@@ -11,19 +11,19 @@ function activate(context) {
   // #region WebviewView Provider (for bottom panel)
   const provider = new DemoWebviewViewProvider(context);
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider('demo.bottomPanel', provider)
+    vscode.window.registerWebviewViewProvider('elk.bottomPanel', provider)
   );
   // #endregion WebviewView Provider
 
   // #region Commands (VSCODE -> EXTENSION)
   // Register openPanel command
-  const openPanelCmd = vscode.commands.registerCommand('demo.openPanel', () => {
+  const openPanelCmd = vscode.commands.registerCommand('elk.openPanel', () => {
     openPanel(context);
   });
 
   // Register sendMessage command
   const sendMessageCmd = vscode.commands.registerCommand(
-    'demo.sendMessage',
+    'elk.sendMessage',
     () => {
       sendMessage(context);
     }
@@ -39,7 +39,7 @@ function openPanel(context) {
 
   if (panelLocation === 'bottom') {
     // Open the bottom panel view
-    vscode.commands.executeCommand('demo.bottomPanel.focus');
+    vscode.commands.executeCommand('elk.bottomPanel.focus');
   } else {
     // Open as tab (existing behavior)
     openTabPanel(context);
