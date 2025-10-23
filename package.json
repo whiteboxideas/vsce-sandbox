@@ -24,7 +24,34 @@
         "command": "demo.sendMessage",
         "title": "Demo: Send Message"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "React Webview Demo",
+      "properties": {
+        "demo.panelLocation": {
+          "type": "string",
+          "default": "tab",
+          "enum": [
+            "tab",
+            "bottom"
+          ],
+          "enumDescriptions": [
+            "Open panel as a tab in the editor",
+            "Open panel in the bottom panel area"
+          ],
+          "description": "Choose where to display the demo panel"
+        }
+      }
+    },
+    "views": {
+      "panel": [
+        {
+          "type": "webview",
+          "id": "demo.bottomPanel",
+          "name": "Webview Demo"
+        }
+      ]
+    }
   },
   "scripts": {
     "build:webview": "cd webview-ui && npm install && npm run build",
