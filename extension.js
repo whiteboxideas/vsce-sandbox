@@ -9,6 +9,81 @@ let webviewView = null;
 let messageCounter = 0;
 let notifyCounter = 0;
 
+// Command mapping for VS Code commands
+const COMMAND_MAP = {
+  // File operations
+  'workbench.action.quickOpen': {
+    name: 'Quick Open File',
+    description: 'Open a file using quick open dialog',
+    parameters: ['fileName', 'line', 'column'],
+    handler: 'handleQuickOpen',
+  },
+  'workbench.action.quickOpenPreviousRecentlyUsedEditor': {
+    name: 'Open Recent File',
+    description: 'Open the most recently used file',
+    parameters: [],
+    handler: 'handleRecentFile',
+  },
+
+  // Navigation
+  'workbench.action.gotoLine': {
+    name: 'Go to Line',
+    description: 'Navigate to a specific line number',
+    parameters: ['line'],
+    handler: 'handleGoToLine',
+  },
+  'workbench.action.findInFiles': {
+    name: 'Find in Files',
+    description: 'Search for text across all files',
+    parameters: ['searchTerm'],
+    handler: 'handleFindInFiles',
+  },
+
+  // UI operations
+  'workbench.action.showCommands': {
+    name: 'Show Command Palette',
+    description: 'Open the command palette',
+    parameters: [],
+    handler: 'handleShowCommands',
+  },
+
+  // Editor operations
+  'editor.action.revealDefinition': {
+    name: 'Go to Definition',
+    description: 'Navigate to the definition of the selected symbol',
+    parameters: [],
+    handler: 'handleGoToDefinition',
+  },
+  'editor.action.rename': {
+    name: 'Rename Symbol',
+    description: 'Rename the selected symbol',
+    parameters: ['newName'],
+    handler: 'handleRename',
+  },
+
+  // View operations
+  'workbench.action.toggleSidebarVisibility': {
+    name: 'Toggle Sidebar',
+    description: 'Show/hide the sidebar',
+    parameters: [],
+    handler: 'handleToggleSidebar',
+  },
+  'workbench.action.togglePanel': {
+    name: 'Toggle Panel',
+    description: 'Show/hide the bottom panel',
+    parameters: [],
+    handler: 'handleTogglePanel',
+  },
+
+  // File operations
+  'workbench.action.findFiles': {
+    name: 'Find Files by Name',
+    description: 'Search for files by name pattern using quick open',
+    parameters: ['fileName', 'filePattern'],
+    handler: 'handleFindFilesByName',
+  },
+};
+
 function activate(context) {
   // #region WebviewView Provider (for bottom panel)
   const provider = new DemoWebviewViewProvider(context);
@@ -38,9 +113,38 @@ function activate(context) {
       togglePanelLocation(context);
     }
   );
+
+  // Register test commands
+  const testCommandsCmd = vscode.commands.registerCommand(
+    'elk.testCommands',
+    () => {
+      testAllCommands();
+    }
+  );
+
+  const testSpecificCmd = vscode.commands.registerCommand(
+    'elk.testSpecificCommand',
+    (commandId) => {
+      testSpecificCommand(commandId);
+    }
+  );
+
+  const listCommandsCmd = vscode.commands.registerCommand(
+    'elk.listCommands',
+    () => {
+      listAvailableCommands();
+    }
+  );
   // #endregion Commands (VSCODE -> EXTENSION)
 
-  context.subscriptions.push(openPanelCmd, sendMessageCmd, toggleLocationCmd);
+  context.subscriptions.push(
+    openPanelCmd,
+    sendMessageCmd,
+    toggleLocationCmd,
+    testCommandsCmd,
+    testSpecificCmd,
+    listCommandsCmd
+  );
 }
 
 function openPanel(context) {
@@ -283,12 +387,16 @@ async function handleLlmRequest(message, url, context) {
     const systemPrompt = `You are a VS Code assistant. When given a user request, respond with a JSON object containing the appropriate VS Code command and parameters.
 
 Available commands:
-- "workbench.action.quickOpen" - to open files (use fileName parameter)
+- "workbench.action.quickOpen" - to OPEN files (use fileName parameter, optional line/column) - automatically selects and opens the file
 - "workbench.action.gotoLine" - to go to specific lines (use line parameter)
 - "editor.action.revealDefinition" - to go to definitions
-- "workbench.action.findInFiles" - to search in files (use searchTerm parameter)
+- "workbench.action.findInFiles" - to search for text content in files (use searchTerm parameter)
+- "workbench.action.findFiles" - to FIND/LIST files by name pattern (use fileName or filePattern parameter) - shows results but doesn't open
 - "workbench.action.showCommands" - to show command palette
 - "workbench.action.quickOpenPreviousRecentlyUsedEditor" - to open recent files
+- "editor.action.rename" - to rename symbols (use newName parameter)
+- "workbench.action.toggleSidebarVisibility" - to toggle sidebar
+- "workbench.action.togglePanel" - to toggle bottom panel
 
 Response format (ALWAYS respond with valid JSON only):
 {
@@ -302,11 +410,20 @@ Response format (ALWAYS respond with valid JSON only):
 }
 
 Examples:
-- "open file test.tsx" -> {"command": "workbench.action.quickOpen", "parameters": {"fileName": "test.tsx"}, "description": "Open test.tsx file"}
+- "open file test.tsx" -> {"command": "workbench.action.quickOpen", "parameters": {"fileName": "test.tsx"}, "description": "Open test.tsx file (automatically selects and opens)"}
+- "open package.json" -> {"command": "workbench.action.quickOpen", "parameters": {"fileName": "package.json"}, "description": "Open package.json file"}
 - "go to line 25" -> {"command": "workbench.action.gotoLine", "parameters": {"line": 25}, "description": "Go to line 25"}
 - "search for function" -> {"command": "workbench.action.findInFiles", "parameters": {"searchTerm": "function"}, "description": "Search for 'function' in files"}
+- "find files named test" -> {"command": "workbench.action.findFiles", "parameters": {"fileName": "test"}, "description": "Find files with 'test' in the name (shows list)"}
+- "list files with .js extension" -> {"command": "workbench.action.findFiles", "parameters": {"filePattern": "*.js"}, "description": "Find all .js files (shows list)"}
+- "rename to newName" -> {"command": "editor.action.rename", "parameters": {"newName": "newName"}, "description": "Rename symbol to newName"}
+- "toggle sidebar" -> {"command": "workbench.action.toggleSidebarVisibility", "parameters": {}, "description": "Toggle sidebar visibility"}
 
-IMPORTANT: Always respond with ONLY the JSON object, no other text.`;
+IMPORTANT: 
+- Use "workbench.action.quickOpen" for "open file" requests - this will open the file
+- Use "workbench.action.findFiles" for "find files", "list files", "show files" requests - this will show a list
+- Use "workbench.action.findInFiles" for "search for text" requests - this searches content within files
+- Always respond with ONLY the JSON object, no other text.`;
 
     const requestBody = {
       model: 'local-model',
@@ -421,58 +538,19 @@ async function executeStructuredCommand(structuredResponse) {
   try {
     console.log(
       '[Extension] Executing structured command:',
-      structuredResponse.command
+      structuredResponse.command,
+      structuredResponse.parameters
     );
 
-    if (structuredResponse.command === 'workbench.action.quickOpen') {
-      const fileName = structuredResponse.parameters?.fileName;
-      if (fileName) {
-        await vscode.commands.executeCommand(
-          'workbench.action.quickOpen',
-          fileName
-        );
-        // Wait for quick open to populate
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        await vscode.commands.executeCommand(
-          'workbench.action.acceptSelectedQuickOpenItem'
-        );
-
-        // If line/column specified, navigate there
-        if (structuredResponse.parameters?.line) {
-          await new Promise((resolve) => setTimeout(resolve, 200));
-          await goToLineColumn(
-            structuredResponse.parameters.line,
-            structuredResponse.parameters.column || 1
-          );
-        }
-      }
-    } else if (structuredResponse.command === 'workbench.action.gotoLine') {
-      const line = structuredResponse.parameters?.line;
-      if (line) {
-        // Use our existing goToLineColumn function for better control
-        await goToLineColumn(line, 1);
-      }
-    } else if (structuredResponse.command === 'workbench.action.findInFiles') {
-      const searchTerm = structuredResponse.parameters?.searchTerm;
-      if (searchTerm) {
-        await vscode.commands.executeCommand('workbench.action.findInFiles');
-        // Wait for search to open, then set the search term
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        // The search input should be focused, we can type the search term
-        await vscode.commands.executeCommand('type', { text: searchTerm });
-      }
-    } else if (structuredResponse.command === 'workbench.action.showCommands') {
-      await vscode.commands.executeCommand('workbench.action.showCommands');
-    } else if (
-      structuredResponse.command ===
-      'workbench.action.quickOpenPreviousRecentlyUsedEditor'
-    ) {
-      await vscode.commands.executeCommand(
-        'workbench.action.quickOpenPreviousRecentlyUsedEditor'
-      );
+    const commandInfo = COMMAND_MAP[structuredResponse.command];
+    if (commandInfo) {
+      console.log(`[Extension] Using mapped handler: ${commandInfo.handler}`);
+      await executeMappedCommand(structuredResponse, commandInfo);
     } else {
+      console.log('[Extension] Using direct command execution');
       // Execute the command directly with any parameters
       const params = structuredResponse.parameters || {};
+      console.log('extension.js-552: ', structuredResponse.command, params);
       await vscode.commands.executeCommand(structuredResponse.command, params);
     }
 
@@ -480,6 +558,47 @@ async function executeStructuredCommand(structuredResponse) {
   } catch (error) {
     console.error('[Extension] Error executing structured command:', error);
     throw error;
+  }
+}
+
+async function executeMappedCommand(structuredResponse, commandInfo) {
+  const params = structuredResponse.parameters || {};
+
+  switch (commandInfo.handler) {
+    case 'handleQuickOpen':
+      console.log('extension.js-569: ', params);
+      await handleQuickOpen(params);
+      break;
+    case 'handleRecentFile':
+      await handleRecentFile(params);
+      break;
+    case 'handleGoToLine':
+      await handleGoToLine(params);
+      break;
+    case 'handleFindInFiles':
+      await handleFindInFiles(params);
+      break;
+    case 'handleShowCommands':
+      await handleShowCommands(params);
+      break;
+    case 'handleGoToDefinition':
+      await handleGoToDefinition(params);
+      break;
+    case 'handleRename':
+      await handleRename(params);
+      break;
+    case 'handleToggleSidebar':
+      await handleToggleSidebar(params);
+      break;
+    case 'handleTogglePanel':
+      await handleTogglePanel(params);
+      break;
+    case 'handleFindFilesByName':
+      await handleFindFilesByName(params);
+      break;
+    default:
+      // Fallback to direct execution
+      await vscode.commands.executeCommand(structuredResponse.command, params);
   }
 }
 
@@ -507,6 +626,246 @@ function sendLlmError(error) {
   } else if (webviewView) {
     webviewView.webview.postMessage(message);
   }
+}
+
+// Command Handler Functionsx
+async function handleQuickOpen(params) {
+  const fileName = params?.fileName;
+  if (fileName) {
+    console.log('extension.js-635: ', fileName);
+    // Open quick open
+    await vscode.commands.executeCommand(
+      'workbench.action.quickOpen',
+      fileName
+    );
+    // Wait for quick open to open
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Wait for search results to populate
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Automatically select the first result
+    await vscode.commands.executeCommand(
+      'workbench.action.acceptSelectedQuickOpenItem'
+    );
+
+    if (params?.line) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      await goToLineColumn(params.line, params.column || 1);
+    }
+  } else {
+    // Just open quick open without typing anything
+    console.log('extension.js-656: ');
+    await vscode.commands.executeCommand('workbench.action.quickOpen');
+  }
+}
+
+async function handleRecentFile(params) {
+  await vscode.commands.executeCommand(
+    'workbench.action.quickOpenPreviousRecentlyUsedEditor'
+  );
+}
+
+async function handleGoToLine(params) {
+  const line = params?.line;
+  if (line) {
+    // Use VS Code's built-in goto line command
+    await vscode.commands.executeCommand('workbench.action.gotoLine');
+    // Wait for goto line dialog to open
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Type the line number and accept
+    await vscode.commands.executeCommand('type', { text: line.toString() });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    await vscode.commands.executeCommand(
+      'workbench.action.acceptSelectedQuickOpenItem'
+    );
+  }
+}
+
+async function handleFindInFiles(params) {
+  const searchTerm = params?.searchTerm;
+  if (searchTerm) {
+    await vscode.commands.executeCommand('workbench.action.findInFiles');
+    // Wait for search panel to open and populate
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await vscode.commands.executeCommand('type', { text: searchTerm });
+    // Wait for search to complete and accept results
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await vscode.commands.executeCommand('search.action.acceptSearchInput');
+  } else {
+    await vscode.commands.executeCommand('workbench.action.findInFiles');
+  }
+}
+
+async function handleShowCommands(params) {
+  await vscode.commands.executeCommand('workbench.action.showCommands');
+  // Wait for command palette to open
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  // Command palette is now open and ready for user input
+}
+
+async function handleGoToDefinition(params) {
+  await vscode.commands.executeCommand('editor.action.revealDefinition');
+}
+
+async function handleRename(params) {
+  const newName = params?.newName;
+  await vscode.commands.executeCommand('editor.action.rename');
+  // Wait for rename dialog to open
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  if (newName) {
+    // Type the new name
+    await vscode.commands.executeCommand('type', { text: newName });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    // Accept the rename
+    await vscode.commands.executeCommand(
+      'workbench.action.acceptSelectedQuickOpenItem'
+    );
+  }
+  // If no newName provided, the rename dialog will be open for manual input
+}
+
+async function handleToggleSidebar(params) {
+  await vscode.commands.executeCommand(
+    'workbench.action.toggleSidebarVisibility'
+  );
+}
+
+async function handleTogglePanel(params) {
+  await vscode.commands.executeCommand('workbench.action.togglePanel');
+}
+
+async function handleFindFilesByName(params) {
+  const fileName = params?.fileName || params?.filePattern;
+  if (fileName) {
+    // Use quick open to search for files by name
+    await vscode.commands.executeCommand('workbench.action.quickOpen');
+    // Wait for quick open to open
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Type the file name pattern (use * for wildcards)
+    const searchPattern = fileName.includes('*') ? fileName : `*${fileName}*`;
+    await vscode.commands.executeCommand('type', { text: searchPattern });
+    // Wait for search results to populate
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    // Don't auto-accept, let user see the results
+    console.log(
+      `[Extension] File search completed for pattern: ${searchPattern}`
+    );
+  } else {
+    // Just open quick open for manual file search
+    await vscode.commands.executeCommand('workbench.action.quickOpen');
+  }
+}
+
+// Test Functions
+async function testAllCommands() {
+  console.log('[Extension] Testing all mapped commands...');
+
+  for (const [commandId, commandInfo] of Object.entries(COMMAND_MAP)) {
+    try {
+      console.log(
+        `[Extension] Testing command: ${commandId} (${commandInfo.name})`
+      );
+
+      // Create a test structured response
+      const testResponse = {
+        command: commandId,
+        parameters: createTestParameters(commandId),
+        description: commandInfo.description,
+      };
+
+      await executeStructuredCommand(testResponse);
+      console.log(`[Extension] ✅ Command ${commandId} executed successfully`);
+
+      // Wait between commands to avoid conflicts
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    } catch (error) {
+      console.error(
+        `[Extension] ❌ Command ${commandId} failed:`,
+        error.message
+      );
+    }
+  }
+
+  vscode.window.showInformationMessage(
+    'Command testing completed! Check the console for results.'
+  );
+}
+
+async function testSpecificCommand(commandId) {
+  console.log(`[Extension] Testing specific command: ${commandId}`);
+
+  const commandInfo = COMMAND_MAP[commandId];
+  if (!commandInfo) {
+    vscode.window.showErrorMessage(
+      `Command ${commandId} not found in command map`
+    );
+    return;
+  }
+
+  try {
+    const testResponse = {
+      command: commandId,
+      parameters: createTestParameters(commandId),
+      description: commandInfo.description,
+    };
+
+    await executeStructuredCommand(testResponse);
+    vscode.window.showInformationMessage(
+      `✅ Command ${commandId} executed successfully`
+    );
+  } catch (error) {
+    console.error(`[Extension] ❌ Command ${commandId} failed:`, error.message);
+    vscode.window.showErrorMessage(
+      `Command ${commandId} failed: ${error.message}`
+    );
+  }
+}
+
+function createTestParameters(commandId) {
+  const testParams = {
+    'workbench.action.quickOpen': { fileName: 'package.json' },
+    'workbench.action.gotoLine': { line: 1 },
+    'workbench.action.findInFiles': { searchTerm: 'function' },
+    'workbench.action.findFiles': { fileName: 'test' },
+    'editor.action.rename': { newName: 'testName' },
+  };
+
+  return testParams[commandId] || {};
+}
+
+function listAvailableCommands() {
+  console.log('[Extension] Available Commands:');
+  console.log('================================');
+
+  for (const [commandId, commandInfo] of Object.entries(COMMAND_MAP)) {
+    console.log(`\n${commandId}:`);
+    console.log(`  Name: ${commandInfo.name}`);
+    console.log(`  Description: ${commandInfo.description}`);
+    console.log(`  Parameters: ${commandInfo.parameters.join(', ') || 'None'}`);
+    console.log(`  Handler: ${commandInfo.handler}`);
+  }
+
+  // Show in VS Code as well
+  const commandList = Object.entries(COMMAND_MAP)
+    .map(([id, info]) => `${id}: ${info.name} - ${info.description}`)
+    .join('\n');
+
+  vscode.window
+    .showInformationMessage(
+      `Available Commands (${
+        Object.keys(COMMAND_MAP).length
+      } total):\n${commandList}`,
+      'Test All Commands',
+      'Show in Console'
+    )
+    .then((selection) => {
+      if (selection === 'Test All Commands') {
+        testAllCommands();
+      } else if (selection === 'Show in Console') {
+        // Commands are already logged to console
+      }
+    });
 }
 
 function getWebviewContent(webview, extensionPath) {

@@ -42,6 +42,18 @@
       {
         "command": "elk.togglePanelLocation",
         "title": "Demo: Toggle Panel Location"
+      },
+      {
+        "command": "elk.testCommands",
+        "title": "Test: Test All Commands"
+      },
+      {
+        "command": "elk.testSpecificCommand",
+        "title": "Test: Test Specific Command"
+      },
+      {
+        "command": "elk.listCommands",
+        "title": "Test: List Available Commands"
       }
     ],
     "viewsContainers": {
