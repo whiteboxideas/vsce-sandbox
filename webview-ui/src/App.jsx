@@ -8,6 +8,10 @@ function App() {
   const [fileName, setFileName] = useState('');
   const [lineNumber, setLineNumber] = useState('');
   const [columnNumber, setColumnNumber] = useState('');
+  const [llmUrl, setLlmUrl] = useState('http://localhost:1234');
+  const [llmMessage, setLlmMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [llmResponse, setLlmResponse] = useState('');
 
   useEffect(() => {
     console.log('[Webview] App mounted, vscode API:', vscode);
@@ -18,6 +22,12 @@ function App() {
       console.log('[Webview] Received message from extension:', message);
       if (message.type === 'hostMessage') {
         setLastMessage(message.text);
+      } else if (message.type === 'llmResponse') {
+        setLlmResponse(message.response);
+        setIsLoading(false);
+      } else if (message.type === 'llmError') {
+        setLlmResponse(`Error: ${message.error}`);
+        setIsLoading(false);
       }
     };
 
@@ -89,6 +99,32 @@ function App() {
     });
 
     console.log('[Webview] Go to line/column message sent');
+  };
+
+  const handleLlmSend = () => {
+    console.log('[Webview] LLM send button clicked, message:', llmMessage);
+
+    if (!llmMessage.trim()) {
+      console.log('[Webview] LLM message is empty, aborting');
+      return;
+    }
+
+    if (!llmUrl.trim()) {
+      console.log('[Webview] LLM URL is empty, aborting');
+      return;
+    }
+
+    setIsLoading(true);
+    setLlmResponse('');
+
+    // Send message to extension to call LLM
+    vscode.postMessage({
+      type: 'llmRequest',
+      message: llmMessage.trim(),
+      url: llmUrl.trim(),
+    });
+
+    console.log('[Webview] LLM request message sent');
   };
 
   return (
@@ -206,6 +242,58 @@ function App() {
           </button>
         </div>
       </div>
+
+      <div style={styles.fileSection}>
+        <h2 style={styles.subheading}>LLM Assistant:</h2>
+        <div style={styles.llmSection}>
+          <div style={styles.inputGroup}>
+            <input
+              type='text'
+              value={llmUrl}
+              onChange={(e) => setLlmUrl(e.target.value)}
+              placeholder='LLM URL (e.g., http://localhost:1234)'
+              style={styles.input}
+            />
+          </div>
+          <div style={styles.inputGroup}>
+            <textarea
+              value={llmMessage}
+              onChange={(e) => setLlmMessage(e.target.value)}
+              placeholder='Enter your message to the LLM (e.g., "open file test.tsx")'
+              style={{ ...styles.input, ...styles.textarea }}
+              rows={3}
+            />
+            <button
+              onClick={handleLlmSend}
+              disabled={isLoading}
+              style={{
+                ...styles.button,
+                ...(isLoading ? styles.buttonDisabled : {}),
+              }}
+              onMouseOver={(e) => {
+                if (!isLoading) {
+                  e.target.style.backgroundColor =
+                    styles.buttonHover.backgroundColor;
+                }
+              }}
+              onMouseOut={(e) => {
+                if (!isLoading) {
+                  e.target.style.backgroundColor =
+                    styles.button.backgroundColor;
+                }
+              }}
+            >
+              {isLoading ? 'Sending...' : 'Send to LLM'}
+            </button>
+          </div>
+          {llmResponse && (
+            <div style={styles.responseBox}>
+              <h3 style={styles.subheading}>LLM Response:</h3>
+              <div style={styles.log}>{llmResponse}</div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -292,6 +380,22 @@ const styles = {
     border: '1px solid var(--vscode-input-border)',
     borderRadius: '2px',
     outline: 'none',
+  },
+  textarea: {
+    resize: 'vertical',
+    minHeight: '60px',
+  },
+  llmSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '15px',
+  },
+  responseBox: {
+    marginTop: '15px',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+    cursor: 'not-allowed',
   },
 };
 

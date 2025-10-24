@@ -1,6 +1,8 @@
 const vscode = require('vscode');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
+const http = require('http');
 
 let panel = null;
 let webviewView = null;
@@ -192,6 +194,13 @@ function handleWebviewMessage(message, context) {
       console.error('[Extension] Error going to line/column:', error);
       vscode.window.showErrorMessage(`Error: ${error.message}`);
     });
+  } else if (message.type === 'llmRequest') {
+    // Handle LLM request
+    console.log('[Extension] LLM request received:', message.message);
+    handleLlmRequest(message.message, message.url, context).catch((error) => {
+      console.error('[Extension] Error handling LLM request:', error);
+      sendLlmError(error.message);
+    });
   }
 }
 
@@ -263,6 +272,240 @@ async function goToLineColumn(line, column) {
     vscode.window.showErrorMessage(
       `Failed to go to line/column: ${error.message}`
     );
+  }
+}
+
+async function handleLlmRequest(message, url, context) {
+  try {
+    console.log('[Extension] Starting LLM request to:', url);
+
+    // Create the structured prompt for the LLM
+    const systemPrompt = `You are a VS Code assistant. When given a user request, respond with a JSON object containing the appropriate VS Code command and parameters.
+
+Available commands:
+- "workbench.action.quickOpen" - to open files (use fileName parameter)
+- "workbench.action.gotoLine" - to go to specific lines (use line parameter)
+- "editor.action.revealDefinition" - to go to definitions
+- "workbench.action.findInFiles" - to search in files (use searchTerm parameter)
+- "workbench.action.showCommands" - to show command palette
+- "workbench.action.quickOpenPreviousRecentlyUsedEditor" - to open recent files
+
+Response format (ALWAYS respond with valid JSON only):
+{
+  "command": "workbench.action.quickOpen",
+  "parameters": {
+    "fileName": "example.tsx",
+    "line": 10,
+    "column": 5
+  },
+  "description": "Brief description of what this command does"
+}
+
+Examples:
+- "open file test.tsx" -> {"command": "workbench.action.quickOpen", "parameters": {"fileName": "test.tsx"}, "description": "Open test.tsx file"}
+- "go to line 25" -> {"command": "workbench.action.gotoLine", "parameters": {"line": 25}, "description": "Go to line 25"}
+- "search for function" -> {"command": "workbench.action.findInFiles", "parameters": {"searchTerm": "function"}, "description": "Search for 'function' in files"}
+
+IMPORTANT: Always respond with ONLY the JSON object, no other text.`;
+
+    const requestBody = {
+      model: 'local-model',
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt,
+        },
+        {
+          role: 'user',
+          content: message,
+        },
+      ],
+      temperature: 0.1,
+      max_tokens: 500,
+    };
+
+    const response = await makeLlmRequest(url, requestBody);
+    console.log('[Extension] LLM response received:', response);
+
+    // Parse the structured response
+    const structuredResponse = parseLlmResponse(response);
+    console.log('[Extension] Parsed structured response:', structuredResponse);
+
+    // Execute the VS Code command
+    await executeStructuredCommand(structuredResponse);
+
+    // Send response back to webview
+    sendLlmResponse(JSON.stringify(structuredResponse, null, 2));
+  } catch (error) {
+    console.error('[Extension] Error in handleLlmRequest:', error);
+    throw error;
+  }
+}
+
+async function makeLlmRequest(url, requestBody) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const isHttps = urlObj.protocol === 'https:';
+    const client = isHttps ? https : http;
+
+    const options = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || (isHttps ? 443 : 80),
+      path: '/v1/chat/completions',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(JSON.stringify(requestBody)),
+      },
+    };
+
+    const req = client.request(options, (res) => {
+      let data = '';
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        try {
+          const response = JSON.parse(data);
+          if (
+            response.choices &&
+            response.choices[0] &&
+            response.choices[0].message
+          ) {
+            resolve(response.choices[0].message.content);
+          } else {
+            reject(new Error('Invalid LLM response format'));
+          }
+        } catch (parseError) {
+          reject(
+            new Error(`Failed to parse LLM response: ${parseError.message}`)
+          );
+        }
+      });
+    });
+
+    req.on('error', (error) => {
+      reject(new Error(`LLM request failed: ${error.message}`));
+    });
+
+    req.write(JSON.stringify(requestBody));
+    req.end();
+  });
+}
+
+function parseLlmResponse(response) {
+  try {
+    // Try to extract JSON from the response
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    } else {
+      throw new Error('No JSON found in LLM response');
+    }
+  } catch (error) {
+    // If parsing fails, return a default structure
+    return {
+      command: 'workbench.action.quickOpen',
+      parameters: {
+        fileName: 'unknown',
+      },
+      description: 'Could not parse LLM response',
+      rawResponse: response,
+    };
+  }
+}
+
+async function executeStructuredCommand(structuredResponse) {
+  try {
+    console.log(
+      '[Extension] Executing structured command:',
+      structuredResponse.command
+    );
+
+    if (structuredResponse.command === 'workbench.action.quickOpen') {
+      const fileName = structuredResponse.parameters?.fileName;
+      if (fileName) {
+        await vscode.commands.executeCommand(
+          'workbench.action.quickOpen',
+          fileName
+        );
+        // Wait for quick open to populate
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        await vscode.commands.executeCommand(
+          'workbench.action.acceptSelectedQuickOpenItem'
+        );
+
+        // If line/column specified, navigate there
+        if (structuredResponse.parameters?.line) {
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          await goToLineColumn(
+            structuredResponse.parameters.line,
+            structuredResponse.parameters.column || 1
+          );
+        }
+      }
+    } else if (structuredResponse.command === 'workbench.action.gotoLine') {
+      const line = structuredResponse.parameters?.line;
+      if (line) {
+        // Use our existing goToLineColumn function for better control
+        await goToLineColumn(line, 1);
+      }
+    } else if (structuredResponse.command === 'workbench.action.findInFiles') {
+      const searchTerm = structuredResponse.parameters?.searchTerm;
+      if (searchTerm) {
+        await vscode.commands.executeCommand('workbench.action.findInFiles');
+        // Wait for search to open, then set the search term
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        // The search input should be focused, we can type the search term
+        await vscode.commands.executeCommand('type', { text: searchTerm });
+      }
+    } else if (structuredResponse.command === 'workbench.action.showCommands') {
+      await vscode.commands.executeCommand('workbench.action.showCommands');
+    } else if (
+      structuredResponse.command ===
+      'workbench.action.quickOpenPreviousRecentlyUsedEditor'
+    ) {
+      await vscode.commands.executeCommand(
+        'workbench.action.quickOpenPreviousRecentlyUsedEditor'
+      );
+    } else {
+      // Execute the command directly with any parameters
+      const params = structuredResponse.parameters || {};
+      await vscode.commands.executeCommand(structuredResponse.command, params);
+    }
+
+    console.log('[Extension] Structured command executed successfully');
+  } catch (error) {
+    console.error('[Extension] Error executing structured command:', error);
+    throw error;
+  }
+}
+
+function sendLlmResponse(response) {
+  const message = {
+    type: 'llmResponse',
+    response: response,
+  };
+
+  if (panel) {
+    panel.webview.postMessage(message);
+  } else if (webviewView) {
+    webviewView.webview.postMessage(message);
+  }
+}
+
+function sendLlmError(error) {
+  const message = {
+    type: 'llmError',
+    error: error,
+  };
+
+  if (panel) {
+    panel.webview.postMessage(message);
+  } else if (webviewView) {
+    webviewView.webview.postMessage(message);
   }
 }
 

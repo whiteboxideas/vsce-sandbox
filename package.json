@@ -3,6 +3,7 @@
   "displayName": "Elk by WBI",
   "description": "VS Code extension with React webview panel and two-way communication",
   "version": "1.0.0",
+  "publisher": "wbi",
   "engines": {
     "vscode": "^1.80.0"
   },
